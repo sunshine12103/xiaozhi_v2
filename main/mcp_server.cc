@@ -14,6 +14,7 @@
 #include "display.h"
 #include "oled_display.h"
 #include "board.h"
+#include "boards/common/esp32_music.h"
 #include "settings.h"
 #include "lvgl_theme.h"
 #include "lvgl_display.h"
@@ -120,6 +121,57 @@ void McpServer::AddCommonTools() {
             });
     }
 #endif
+
+    // Music player tools
+    auto music = board.GetMusic();
+    if (music) {
+        AddTool("self.music.play_song",
+            "播放指定的歌曲。当用户要求播放音乐时，优先使用此工具，而不是搜索或下载音乐。\n"
+            "参数:\n"
+            "  `song_name`: 要播放的歌曲名称（必填）。\n"
+            "  `artist_name`: 歌手名称（可选，推荐为空字符串）。",
+            PropertyList({
+                Property("song_name", kPropertyTypeString),//歌曲名称（必填）
+                Property("artist_name", kPropertyTypeString, "")//歌手名称（可选，推荐为空字符串）
+            }),
+            [music](const PropertyList& properties) -> ReturnValue {
+                auto song_name = properties["song_name"].value<std::string>();
+                auto artist_name = properties["artist_name"].value<std::string>();
+
+                if (!music->Download(song_name, artist_name)) {
+                    return "{\"success\": false, \"message\": \"搜索音乐流源失败\"}";
+                }
+                auto download_result = music->GetDownloadResult();
+                ESP_LOGI(TAG, "Music details result: %s", download_result.c_str());
+                return "{\"success\": true, \"message\": \"音乐已开始播放\"}";
+            });
+
+        AddTool("self.music.set_display_mode",
+            "设置音乐播放时的显示模式。可以切换频谱或歌词。当用户要求『开启频谱显示』、『关闭频谱显示』或『显示歌词』时，设置相应的显示模式。\n"
+            "参数:\n"
+            "  `mode`: 显示模式，可以是 'spectrum'（频谱）或 'lyrics'（歌词）。",
+            PropertyList({
+                Property("mode", kPropertyTypeString)//显示模式: "spectrum" 或 "lyrics"
+            }),
+            [music](const PropertyList& properties) -> ReturnValue {
+                auto mode_str = properties["mode"].value<std::string>();
+
+                // 转换为英文统一处理
+                if (mode_str == "spectrum" || mode_str == "频谱") {
+                    // 设置为频谱显示模式
+                    auto esp32_music = static_cast<Esp32Music*>(music);
+                    esp32_music->SetDisplayMode(Esp32Music::DISPLAY_MODE_SPECTRUM);
+                    return "{\"success\": true, \"message\": \"已设置为频谱显示模式\"}";       
+                } else if (mode_str == "lyrics" || mode_str == "歌词") {
+                    // 设置为歌词显示模式
+                    auto esp32_music = static_cast<Esp32Music*>(music);
+                    esp32_music->SetDisplayMode(Esp32Music::DISPLAY_MODE_LYRICS);
+                    return "{\"success\": true, \"message\": \"已设置为歌词显示模式\"}";       
+                } else {
+                    return "{\"success\": false, \"message\": \"无效的显示模式，请使用 'spectrum' 或 'lyrics'\"}";
+                }
+            });
+    }
 
     // Restore the original tools list to the end of the tools list
     tools_.insert(tools_.end(), original_tools.begin(), original_tools.end());

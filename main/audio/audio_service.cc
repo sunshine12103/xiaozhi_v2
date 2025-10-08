@@ -274,6 +274,14 @@ void AudioService::AudioOutputTask() {
             esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
             codec_->EnableOutput(true);
         }
+        
+        // Set optimal sample rate for TTS before outputting audio
+        const int TTS_SAMPLE_RATE = 24000;
+        if (codec_->output_sample_rate() != TTS_SAMPLE_RATE) {
+            ESP_LOGI("AudioService", "Switching to TTS sample rate: %d Hz", TTS_SAMPLE_RATE);
+            codec_->SetOutputSampleRate(TTS_SAMPLE_RATE);
+        }
+        
         codec_->OutputData(task->pcm);
 
         /* Update the last output time */
@@ -317,12 +325,16 @@ void AudioService::OpusCodecTask() {
 
             SetDecodeSampleRate(packet->sample_rate, packet->frame_duration);
             if (opus_decoder_->Decode(std::move(packet->payload), task->pcm)) {
-                // Resample if the sample rate is different
+                // Resample if the sample rate is different and resampler is properly configured
                 if (opus_decoder_->sample_rate() != codec_->output_sample_rate()) {
-                    int target_size = output_resampler_.GetOutputSamples(task->pcm.size());
-                    std::vector<int16_t> resampled(target_size);
-                    output_resampler_.Process(task->pcm.data(), task->pcm.size(), resampled.data());
-                    task->pcm = std::move(resampled);
+                    if (output_resampler_.IsConfigured()) {
+                        int target_size = output_resampler_.GetOutputSamples(task->pcm.size());
+                        std::vector<int16_t> resampled(target_size);
+                        output_resampler_.Process(task->pcm.data(), task->pcm.size(), resampled.data());
+                        task->pcm = std::move(resampled);
+                    } else {
+                        ESP_LOGW(TAG, "Resampler not configured, playing audio with original sample rate");
+                    }
                 }
 
                 lock.lock();
@@ -525,6 +537,13 @@ void AudioService::PlaySound(const std::string_view& ogg) {
         esp_timer_stop(audio_power_timer_);
         esp_timer_start_periodic(audio_power_timer_, AUDIO_POWER_CHECK_INTERVAL_MS * 1000);
         codec_->EnableOutput(true);
+    }
+
+    // Set optimal sample rate for system sounds (like TTS)
+    const int TTS_SAMPLE_RATE = 24000;
+    if (codec_->output_sample_rate() != TTS_SAMPLE_RATE) {
+        ESP_LOGI("AudioService", "Switching to TTS sample rate for sound: %d Hz", TTS_SAMPLE_RATE);
+        codec_->SetOutputSampleRate(TTS_SAMPLE_RATE);
     }
 
     const uint8_t* buf = reinterpret_cast<const uint8_t*>(ogg.data());

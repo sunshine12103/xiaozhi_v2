@@ -63,10 +63,14 @@ public:
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
+    void AddAudioData(AudioStreamPacket&& packet);  // For music playback
 
 private:
     Application();
     ~Application();
+
+    void SetOptimalSampleRateForMusic();
+    void SetOptimalSampleRateForTTS();
 
     std::mutex mutex_;
     std::deque<std::function<void()>> main_tasks_;

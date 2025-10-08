@@ -75,3 +75,7 @@ void AudioCodec::EnableOutput(bool enable) {
     output_enabled_ = enable;
     ESP_LOGI(TAG, "Set output enable to %s", enable ? "true" : "false");
 }
+
+void AudioCodec::SetOutputSampleRate(int sample_rate) {
+    ESP_LOGI(TAG, "SetOutputSampleRate called with %d Hz (base implementation does nothing)", sample_rate);
+}

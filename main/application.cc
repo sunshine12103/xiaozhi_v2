@@ -11,6 +11,7 @@
 #include "settings.h"
 
 #include <cstring>
+#include <vector>
 #include <esp_log.h>
 #include <cJSON.h>
 #include <driver/gpio.h>
@@ -39,7 +40,40 @@ Application::Application() {
     event_group_ = xEventGroupCreate();
 
 #if CONFIG_USE_DEVICE_AEC && CONFIG_USE_SERVER_AEC
-#error "CONFIG_USE_DEVICE_AEC and CONFIG_USE_SERVER_AEC cannot be enabled at the same time"
+#error "CONFIG_USE_DEVICE_AEC and         // If sample rate doesn't match codec output rate, do simple resampling
+        if (packet.sample_rate != codec->output_sample_rate()) {
+            ESP_LOGI("Application", "Resampling from %d Hz to %d Hz", 
+                     packet.sample_rate, codec->output_sample_rate());
+            
+            // Simple linear interpolation resampling
+            double ratio = (double)codec->output_sample_rate() / packet.sample_rate;
+            size_t new_sample_count = (size_t)(num_samples * ratio);
+            std::vector<int16_t> resampled_data(new_sample_count);
+            
+            for (size_t i = 0; i < new_sample_count; i++) {
+                double src_index = i / ratio;
+                size_t src_i = (size_t)src_index;
+                
+                if (src_i < num_samples - 1) {
+                    // Linear interpolation
+                    double frac = src_index - src_i;
+                    resampled_data[i] = (int16_t)(pcm_data[src_i] * (1.0 - frac) + pcm_data[src_i + 1] * frac);
+                } else if (src_i < num_samples) {
+                    resampled_data[i] = pcm_data[src_i];
+                } else {
+                    resampled_data[i] = 0;
+                }
+            }
+            
+            // Send resampled data to audio codec
+            codec->OutputData(resampled_data);
+            ESP_LOGD("Application", "Resampled and sent %d PCM samples (was %d) to codec", 
+                     new_sample_count, num_samples);
+        } else {
+            // Sample rates match, send directly
+            codec->OutputData(pcm_data);
+            ESP_LOGD("Application", "Added %d PCM samples to codec for music playback", num_samples);
+        }_SERVER_AEC cannot be enabled at the same time"
 #elif CONFIG_USE_DEVICE_AEC
     aec_mode_ = kAecOnDeviceSide;
 #elif CONFIG_USE_SERVER_AEC
@@ -869,4 +903,67 @@ void Application::SetAecMode(AecMode mode) {
 
 void Application::PlaySound(const std::string_view& sound) {
     audio_service_.PlaySound(sound);
+}
+
+void Application::AddAudioData(AudioStreamPacket&& packet) {
+    // Handle audio data from music player for direct codec output
+    auto& board = Board::GetInstance();
+    auto* codec = board.GetAudioCodec();
+    if (!codec) {
+        ESP_LOGW("Application", "No audio codec available for music playback");
+        return;
+    }
+
+    // Set optimal sample rate for music playback
+    SetOptimalSampleRateForMusic();
+
+    // Convert raw audio packet to PCM data
+    if (packet.payload.size() >= 2) {
+        size_t num_samples = packet.payload.size() / sizeof(int16_t);
+        std::vector<int16_t> pcm_data(num_samples);
+        memcpy(pcm_data.data(), packet.payload.data(), packet.payload.size());
+
+        // If sample rate doesn't match codec output rate, log warning
+        if (packet.sample_rate != codec->output_sample_rate()) {
+            ESP_LOGW("Application", "Sample rate mismatch: packet=%d, codec=%d", 
+                     packet.sample_rate, codec->output_sample_rate());
+            // For now, just pass through - could add resampling later
+        }
+
+        // Send PCM data to audio codec for playback
+        codec->OutputData(pcm_data);
+        ESP_LOGD("Application", "Added %d PCM samples to codec for music playback", num_samples);
+    } else {
+        ESP_LOGW("Application", "Received invalid audio packet with size %d", packet.payload.size());
+    }
+}
+
+void Application::SetOptimalSampleRateForMusic() {
+    auto& board = Board::GetInstance();
+    auto* codec = board.GetAudioCodec();
+    if (!codec) {
+        return;
+    }
+    
+    // Set to 44.1kHz for optimal music quality
+    const int MUSIC_SAMPLE_RATE = 44100;
+    if (codec->output_sample_rate() != MUSIC_SAMPLE_RATE) {
+        ESP_LOGI("Application", "Switching to music sample rate: %d Hz", MUSIC_SAMPLE_RATE);
+        codec->SetOutputSampleRate(MUSIC_SAMPLE_RATE);
+    }
+}
+
+void Application::SetOptimalSampleRateForTTS() {
+    auto& board = Board::GetInstance();
+    auto* codec = board.GetAudioCodec();
+    if (!codec) {
+        return;
+    }
+    
+    // Set to 24kHz for optimal TTS quality
+    const int TTS_SAMPLE_RATE = 24000;
+    if (codec->output_sample_rate() != TTS_SAMPLE_RATE) {
+        ESP_LOGI("Application", "Switching to TTS sample rate: %d Hz", TTS_SAMPLE_RATE);
+        codec->SetOutputSampleRate(TTS_SAMPLE_RATE);
+    }
 }

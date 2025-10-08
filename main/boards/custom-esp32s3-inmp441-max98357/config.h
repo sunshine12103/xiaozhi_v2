@@ -5,7 +5,7 @@
  
 // Audio sample rates
 #define AUDIO_INPUT_SAMPLE_RATE  16000  // INMP441 optimal sample rate
-#define AUDIO_OUTPUT_SAMPLE_RATE 24000  // MAX98357 output sample rate
+#define AUDIO_OUTPUT_SAMPLE_RATE 24000  // MAX98357 output sample rate (back to original for TTS quality)
 
 // Enable simplex I2S mode (separate I2S for mic and speaker)
 #define AUDIO_I2S_METHOD_SIMPLEX

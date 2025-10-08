@@ -79,6 +79,12 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     duplex_ = false;
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
+    
+    // Store GPIO pins for later reconfiguration
+    spk_bclk_ = spk_bclk;
+    spk_ws_ = spk_ws;
+    spk_dout_ = spk_dout;
+    spk_slot_mask_ = I2S_STD_SLOT_LEFT;
 
     // Create a new channel for speaker
     i2s_chan_config_t chan_cfg = {
@@ -147,6 +153,13 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
 NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sample_rate, gpio_num_t spk_bclk, gpio_num_t spk_ws, gpio_num_t spk_dout, i2s_std_slot_mask_t spk_slot_mask, gpio_num_t mic_sck, gpio_num_t mic_ws, gpio_num_t mic_din, i2s_std_slot_mask_t mic_slot_mask){
     duplex_ = false;
     input_sample_rate_ = input_sample_rate;
+    output_sample_rate_ = output_sample_rate;
+    
+    // Store GPIO pins for later reconfiguration
+    spk_bclk_ = spk_bclk;
+    spk_ws_ = spk_ws;
+    spk_dout_ = spk_dout;
+    spk_slot_mask_ = spk_slot_mask;
     output_sample_rate_ = output_sample_rate;
 
     // Create a new channel for speaker
@@ -356,4 +369,80 @@ int NoAudioCodecSimplexPdm::Read(int16_t* dest, int samples) {
         }
     }
     return samples;
+}
+
+void NoAudioCodecSimplex::SetOutputSampleRate(int sample_rate) {
+    if (sample_rate == output_sample_rate_) {
+        ESP_LOGI(TAG, "Sample rate already set to %d Hz", sample_rate);
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Changing output sample rate from %d Hz to %d Hz", output_sample_rate_, sample_rate);
+    
+    // Disable current TX channel
+    if (tx_handle_ != nullptr) {
+        ESP_ERROR_CHECK(i2s_channel_disable(tx_handle_));
+        ESP_ERROR_CHECK(i2s_del_channel(tx_handle_));
+        tx_handle_ = nullptr;
+    }
+    
+    // Update sample rate
+    output_sample_rate_ = sample_rate;
+    
+    // Recreate TX channel with new sample rate
+    i2s_chan_config_t chan_cfg = {
+        .id = (i2s_port_t)0,
+        .role = I2S_ROLE_MASTER,
+        .dma_desc_num = AUDIO_CODEC_DMA_DESC_NUM,
+        .dma_frame_num = AUDIO_CODEC_DMA_FRAME_NUM,
+        .auto_clear_after_cb = true,
+        .auto_clear_before_cb = false,
+        .intr_priority = 0,
+    };
+    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_handle_, nullptr));
+    
+    i2s_std_config_t std_cfg = {
+        .clk_cfg = {
+            .sample_rate_hz = (uint32_t)output_sample_rate_,
+            .clk_src = I2S_CLK_SRC_DEFAULT,
+            .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+            #ifdef   I2S_HW_VERSION_2
+                .ext_clk_freq_hz = 0,
+            #endif
+        },
+        .slot_cfg = {
+            .data_bit_width = I2S_DATA_BIT_WIDTH_32BIT,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+            .slot_mode = I2S_SLOT_MODE_MONO,
+            .slot_mask = spk_slot_mask_,
+            .ws_width = I2S_DATA_BIT_WIDTH_32BIT,
+            .ws_pol = false,
+            .bit_shift = true,
+            #ifdef   I2S_HW_VERSION_2
+                .left_align = true,
+                .big_endian = false,
+                .bit_order_lsb = false
+            #endif
+        },
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,
+            .bclk = spk_bclk_,
+            .ws = spk_ws_,
+            .dout = spk_dout_,
+            .din = I2S_GPIO_UNUSED,
+            .invert_flags = {
+                .mclk_inv = false,
+                .bclk_inv = false,
+                .ws_inv = false
+            }
+        }
+    };
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle_, &std_cfg));
+    
+    // Re-enable the channel if output was enabled
+    if (output_enabled_) {
+        ESP_ERROR_CHECK(i2s_channel_enable(tx_handle_));
+    }
+    
+    ESP_LOGI(TAG, "Output sample rate changed to %d Hz", sample_rate);
 }

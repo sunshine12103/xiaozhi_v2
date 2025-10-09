@@ -165,7 +165,7 @@ static std::string buildUrlWithParams(const std::string& base_url, const std::st
 Esp32Music::Esp32Music() : last_downloaded_data_(), current_music_url_(), current_song_name_(),
                          song_name_displayed_(false), current_lyric_url_(), lyrics_(), 
                          current_lyric_index_(-1), lyric_thread_(), is_lyric_running_(false),
-                         display_mode_(DISPLAY_MODE_LYRICS), is_playing_(false), is_downloading_(false), 
+                         display_mode_(DISPLAY_MODE_LYRICS), is_playing_(false), is_paused_(false), is_downloading_(false), 
                          play_thread_(), download_thread_(), audio_buffer_(), buffer_mutex_(), 
                          buffer_cv_(), buffer_size_(0), mp3_decoder_(nullptr), mp3_frame_info_(), 
                          mp3_decoder_initialized_(false) {
@@ -450,6 +450,7 @@ bool Esp32Music::StartStreaming(const std::string& music_url) {
     // σü£µ¡óΣ╣ïσëìτÜäµÆ¡µö╛σÆîΣ╕ïΦ╜╜
     is_downloading_ = false;
     is_playing_ = false;
+    is_paused_ = false;  // Reset pause state when starting new stream
     
     // τ¡ëσ╛àΣ╣ïσëìτÜäτ║┐τ¿ïσ«îσà¿τ╗ôµ¥ƒ
     if (download_thread_.joinable()) {
@@ -575,6 +576,34 @@ bool Esp32Music::StopStreaming() {
     }
     
     ESP_LOGI(TAG, "Music streaming stop signal sent");
+    return true;
+}
+
+bool Esp32Music::Pause() {
+    if (!is_playing_ || is_paused_) {
+        ESP_LOGW(TAG, "Music is not playing or already paused");
+        return false;
+    }
+    
+    is_paused_ = true;
+    ESP_LOGI(TAG, "Music paused");
+    return true;
+}
+
+bool Esp32Music::Resume() {
+    if (!is_playing_ || !is_paused_) {
+        ESP_LOGW(TAG, "Music is not playing or not paused");
+        return false;
+    }
+    
+    is_paused_ = false;
+    // Notify condition variable to wake up play thread
+    {
+        std::lock_guard<std::mutex> lock(buffer_mutex_);
+        buffer_cv_.notify_all();
+    }
+    
+    ESP_LOGI(TAG, "Music resumed");
     return true;
 }
 
@@ -759,6 +788,15 @@ void Esp32Music::PlayAudioStream() {
     bool id3_processed = false;
     
     while (is_playing_) {
+        // Check if music is paused
+        if (is_paused_) {
+            ESP_LOGD(TAG, "Music is paused, waiting...");
+            std::unique_lock<std::mutex> lock(buffer_mutex_);
+            buffer_cv_.wait(lock, [this] { return !is_paused_ || !is_playing_; });
+            if (!is_playing_) break;
+            ESP_LOGI(TAG, "Music resumed from pause");
+        }
+        
         // µúÇµƒÑΦ«╛σñçτè╢µÇü∩╝îσÅ¬µ£ëσ£¿τ⌐║Θù▓τè╢µÇüµëìµÆ¡µö╛Θƒ│Σ╣É
         auto& app = Application::GetInstance();
         DeviceState current_state = app.GetDeviceState();

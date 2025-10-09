@@ -77,10 +77,6 @@ Board::~Board() {
     }
 }
 
-Music* Board::GetMusic() {
-    return music_;
-}
-
 std::string Board::GetJson() {
     return GetSystemInfoJson();
 }

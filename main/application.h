@@ -63,7 +63,8 @@ public:
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
-    void AddAudioData(AudioStreamPacket&& packet);  // For music playback
+    void AddAudioData(AudioStreamPacket&& packet);  // For music playbook
+    void ResetMusicPauseState();  // Reset wake word music pause state
 
 private:
     Application();
@@ -85,6 +86,7 @@ private:
 
     bool has_server_time_ = false;
     bool aborted_ = false;
+    bool music_paused_by_wake_word_ = false;
     int clock_ticks_ = 0;
     TaskHandle_t check_new_version_task_handle_ = nullptr;
     TaskHandle_t main_event_loop_task_handle_ = nullptr;

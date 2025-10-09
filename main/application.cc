@@ -651,6 +651,14 @@ void Application::OnWakeWordDetected() {
         return;
     }
 
+    // Pause music if it's currently playing when wake word is detected
+    auto& board = Board::GetInstance();
+    if (board.GetMusic() && board.GetMusic()->IsPlaying()) {
+        ESP_LOGI(TAG, "Pausing music due to wake word detection");
+        board.GetMusic()->Pause();
+        music_paused_by_wake_word_ = true;
+    }
+
     if (device_state_ == kDeviceStateIdle) {
         audio_service_.EncodeWakeWord();
 
@@ -721,6 +729,16 @@ void Application::SetDeviceState(DeviceState state) {
             display->SetEmotion("neutral");
             audio_service_.EnableVoiceProcessing(false);
             audio_service_.EnableWakeWordDetection(true);
+            
+            // Resume music if it was paused by wake word detection
+            if (music_paused_by_wake_word_) {
+                auto& board = Board::GetInstance();
+                if (board.GetMusic()) {
+                    ESP_LOGI(TAG, "Resuming music after conversation ended");
+                    board.GetMusic()->Resume();
+                    music_paused_by_wake_word_ = false;
+                }
+            }
             break;
         case kDeviceStateConnecting:
             display->SetStatus(Lang::Strings::CONNECTING);
@@ -966,4 +984,9 @@ void Application::SetOptimalSampleRateForTTS() {
         ESP_LOGI("Application", "Switching to TTS sample rate: %d Hz", TTS_SAMPLE_RATE);
         codec->SetOutputSampleRate(TTS_SAMPLE_RATE);
     }
+}
+
+void Application::ResetMusicPauseState() {
+    music_paused_by_wake_word_ = false;
+    ESP_LOGI("Application", "Reset music pause state - wake word interruption cleared");
 }

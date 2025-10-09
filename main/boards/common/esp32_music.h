@@ -49,6 +49,7 @@ private:
 
     std::atomic<DisplayMode> display_mode_;
     std::atomic<bool> is_playing_;
+    std::atomic<bool> is_paused_;  // 新增暂停状态
     std::atomic<bool> is_downloading_;
     std::thread play_thread_;
     std::thread download_thread_;
@@ -99,6 +100,9 @@ public:
     // 新增方法
     virtual bool StartStreaming(const std::string& music_url) override;
     virtual bool StopStreaming() override;  // 停止流式播放
+    virtual bool Pause() override;  // 暂停播放
+    virtual bool Resume() override;  // 恢复播放
+    virtual bool IsPlaying() const override { return is_playing_.load() && !is_paused_.load(); }
     virtual size_t GetBufferSize() const override { return buffer_size_; }
     virtual bool IsDownloading() const override { return is_downloading_; }
     virtual int16_t* GetAudioData() override { return final_pcm_data_fft; }

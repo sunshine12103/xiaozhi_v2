@@ -138,6 +138,9 @@ void McpServer::AddCommonTools() {
                 auto song_name = properties["song_name"].value<std::string>();
                 auto artist_name = properties["artist_name"].value<std::string>();
 
+                // Reset music pause state when starting new song
+                Application::GetInstance().ResetMusicPauseState();
+
                 if (!music->Download(song_name, artist_name)) {
                     return "{\"success\": false, \"message\": \"搜索音乐流源失败\"}";
                 }

@@ -60,12 +60,29 @@ Application::Application() {
         .skip_unhandled_events = true
     };
     esp_timer_create(&clock_timer_args, &clock_timer_handle_);
+
+    // Create random emotion timer  
+    esp_timer_create_args_t random_emotion_timer_args = {
+        .callback = [](void* arg) {
+            Application* app = (Application*)arg;
+            app->ShowRandomEmotion();
+        },
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "random_emotion_timer",
+        .skip_unhandled_events = true
+    };
+    esp_timer_create(&random_emotion_timer_args, &random_emotion_timer_handle_);
 }
 
 Application::~Application() {
     if (clock_timer_handle_ != nullptr) {
         esp_timer_stop(clock_timer_handle_);
         esp_timer_delete(clock_timer_handle_);
+    }
+    if (random_emotion_timer_handle_ != nullptr) {
+        esp_timer_stop(random_emotion_timer_handle_);
+        esp_timer_delete(random_emotion_timer_handle_);
     }
     vEventGroupDelete(event_group_);
 }
@@ -697,6 +714,9 @@ void Application::SetDeviceState(DeviceState state) {
             audio_service_.EnableVoiceProcessing(false);
             audio_service_.EnableWakeWordDetection(true);
             
+            // Start random emotion display timer during idle state
+            StartRandomEmotionTimer();
+            
             // Resume music if it was paused by wake word detection
             if (music_paused_by_wake_word_) {
                 auto& board = Board::GetInstance();
@@ -708,11 +728,15 @@ void Application::SetDeviceState(DeviceState state) {
             }
             break;
         case kDeviceStateConnecting:
+            // Stop random emotion timer when leaving idle state
+            StopRandomEmotionTimer();
             display->SetStatus(Lang::Strings::CONNECTING);
             display->SetEmotion("neutral");
             display->SetChatMessage("system", "");
             break;
         case kDeviceStateListening:
+            // Stop random emotion timer when leaving idle state
+            StopRandomEmotionTimer();
             display->SetStatus(Lang::Strings::LISTENING);
             display->SetEmotion("neutral");
 
@@ -725,6 +749,8 @@ void Application::SetDeviceState(DeviceState state) {
             }
             break;
         case kDeviceStateSpeaking:
+            // Stop random emotion timer when leaving idle state
+            StopRandomEmotionTimer();
             display->SetStatus(Lang::Strings::SPEAKING);
 
             if (listening_mode_ != kListeningModeRealtime) {
@@ -956,4 +982,46 @@ void Application::SetOptimalSampleRateForTTS() {
 void Application::ResetMusicPauseState() {
     music_paused_by_wake_word_ = false;
     ESP_LOGI("Application", "Reset music pause state - wake word interruption cleared");
+}
+
+void Application::StartRandomEmotionTimer() {
+    if (random_emotion_timer_handle_ != nullptr) {
+        esp_timer_start_periodic(random_emotion_timer_handle_, 8000000);  // 8 seconds interval
+        ESP_LOGI(TAG, "Started random emotion timer");
+    }
+}
+
+void Application::StopRandomEmotionTimer() {
+    if (random_emotion_timer_handle_ != nullptr) {
+        esp_timer_stop(random_emotion_timer_handle_);
+        ESP_LOGI(TAG, "Stopped random emotion timer");
+    }
+}
+
+void Application::ShowRandomEmotion() {
+    // Only show random emotions when in idle state
+    if (device_state_ != kDeviceStateIdle) {
+        return;
+    }
+
+    // Array of available emotions for random display
+    static const char* emotions[] = {
+        "neutral",
+        "happy", 
+        "sad",
+        "surprised",
+        "thinking",
+        "sleepy"
+    };
+    static const int emotion_count = sizeof(emotions) / sizeof(emotions[0]);
+    
+    // Generate random index
+    int random_index = esp_random() % emotion_count;
+    const char* selected_emotion = emotions[random_index];
+    
+    auto display = Board::GetInstance().GetDisplay();
+    if (display) {
+        ESP_LOGI(TAG, "Random emotion display: %s", selected_emotion);
+        display->SetEmotion(selected_emotion);
+    }
 }

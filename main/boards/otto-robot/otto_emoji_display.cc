@@ -183,6 +183,9 @@ void OttoEmojiDisplay::SetupGifContainer() {
 
     lv_obj_set_style_bg_opa(chat_message_label_, LV_OPA_70, 0);
     lv_obj_set_style_bg_color(chat_message_label_, lv_color_black(), 0);
+    
+    // Hide chat message text completely
+    lv_obj_add_flag(chat_message_label_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_pad_ver(chat_message_label_, 5, 0);
 
     lv_obj_align(chat_message_label_, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -219,13 +222,8 @@ void OttoEmojiDisplay::SetChatMessage(const char* role, const char* content) {
         return;
     }
 
-    if (content == nullptr || strlen(content) == 0) {
-        lv_obj_add_flag(chat_message_label_, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
+    // Always keep chat message text hidden - only show GIF emotions
+    lv_obj_add_flag(chat_message_label_, LV_OBJ_FLAG_HIDDEN);
 
-    lv_label_set_text(chat_message_label_, content);
-    lv_obj_remove_flag(chat_message_label_, LV_OBJ_FLAG_HIDDEN);
-
-    ESP_LOGI(TAG, "设置聊天消息 [%s]: %s", role, content);
+    ESP_LOGI(TAG, "聊天消息被隐藏 [%s]: %s", role, content);
 }

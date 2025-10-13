@@ -9,46 +9,121 @@
 #include <string>
 
 #include "display/lcd_display.h"
-#include "neutral.h"
 
 #define TAG "OttoEmojiDisplay"
 
-// Define GIF descriptors sử dụng raw GIF data
+// Include 6 essential emotional GIF data files
+#include "neutral.h"
+#include "happy.h"
+#include "angry.h"
+#include "sad_loocking_down.h"
+#include "Surprisedd.h"
+#include "scared.h"
+
+// Define 6 essential GIF descriptors for basic emotions
 const lv_img_dsc_t staticstate = {
     .data_size = Neutral_1__gif_len,
     .data = Neutral_1__gif,
 };
 
-// Tất cả emotion đều dùng cùng neutral GIF
-const lv_img_dsc_t happy = staticstate;
-const lv_img_dsc_t sad = staticstate;
-const lv_img_dsc_t angry = staticstate;
-const lv_img_dsc_t surprised = staticstate;
-const lv_img_dsc_t thinking = staticstate;
+const lv_img_dsc_t happy = {
+    .data_size = Happy_gif_len,
+    .data = Happy_gif,
+};
 
-// 表情映射表 - Tất cả emotion đều dùng neutral GIF
+const lv_img_dsc_t angry = {
+    .data_size = Angry_gif_len, 
+    .data = Angry_gif,
+};
+
+const lv_img_dsc_t sad = {
+    .data_size = Sad_loockig_down_gif_len,
+    .data = Sad_loockig_down_gif,
+};
+
+const lv_img_dsc_t surprised = {
+    .data_size = Surprisedd_gif_len,
+    .data = Surprisedd_gif,
+};
+
+const lv_img_dsc_t scared = {
+    .data_size = Scared1_gif_len,
+    .data = Scared1_gif,
+};
+
+// Map other emotions to the 6 basic ones
+const lv_img_dsc_t furious = angry;        // Very angry -> angry
+const lv_img_dsc_t awe = surprised;        // Awe -> surprised
+const lv_img_dsc_t focused = staticstate;  // Thinking -> neutral
+const lv_img_dsc_t squint = staticstate;   // Squinting -> neutral
+
+// 表情映射表 - Khoa học mapping emotions to appropriate GIFs
 const OttoEmojiDisplay::EmotionMap OttoEmojiDisplay::emotion_maps_[] = {
-    // Tất cả đều dùng staticstate (neutral GIF)
+    // Neutral/Calm emotions
     {"neutral", &staticstate},
     {"relaxed", &staticstate},
     {"sleepy", &staticstate},
-    {"happy", &staticstate},
-    {"laughing", &staticstate},
-    {"funny", &staticstate},
-    {"loving", &staticstate},
-    {"confident", &staticstate},
-    {"winking", &staticstate},
-    {"cool", &staticstate},
-    {"delicious", &staticstate},
-    {"kissy", &staticstate},
-    {"silly", &staticstate},
-    {"sad", &staticstate},
-    {"crying", &staticstate},
-    {"angry", &staticstate},
-    {"surprised", &staticstate},
-    {"shocked", &staticstate},
-    {"thinking", &staticstate},
-    {"confused", &staticstate},
+    {"idle", &staticstate},
+    
+    // Happy/Positive emotions
+    {"happy", &happy},
+    {"laughing", &happy},
+    {"funny", &happy},
+    {"loving", &happy},
+    {"confident", &happy},
+    {"cool", &happy},
+    {"delicious", &happy},
+    {"kissy", &happy},
+    {"silly", &happy},
+    {"joyful", &happy},
+    {"excited", &happy},
+    
+    // Winking/Skeptical emotions
+    {"winking", &squint},
+    {"skeptical", &squint},
+    {"mischievous", &squint},
+    
+    // Sad/Down emotions  
+    {"sad", &sad},
+    {"crying", &sad},
+    {"disappointed", &sad},
+    {"melancholy", &sad},
+    {"depressed", &sad},
+    
+    // Angry emotions (mild)
+    {"angry", &angry},
+    {"annoyed", &angry},
+    {"frustrated", &angry},
+    {"irritated", &angry},
+    
+    // Very angry emotions
+    {"furious", &furious},
+    {"rage", &furious},
+    {"livid", &furious},
+    {"enraged", &furious},
+    
+    // Surprised emotions
+    {"surprised", &surprised},
+    {"shocked", &surprised},
+    {"astonished", &surprised},
+    {"amazed", &awe},
+    {"impressed", &awe},
+    {"wonder", &awe},
+    
+    // Thinking/Focused emotions
+    {"thinking", &focused},
+    {"confused", &focused},
+    {"concentrated", &focused},
+    {"determined", &focused},
+    {"focused", &focused},
+    {"pondering", &focused},
+    
+    // Fear/Scared emotions
+    {"scared", &scared},
+    {"afraid", &scared},
+    {"worried", &scared},
+    {"anxious", &scared},
+    {"nervous", &scared},
     {"embarrassed", &staticstate},
 
     {nullptr, nullptr}  // 结束标记

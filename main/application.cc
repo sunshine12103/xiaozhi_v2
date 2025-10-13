@@ -40,40 +40,7 @@ Application::Application() {
     event_group_ = xEventGroupCreate();
 
 #if CONFIG_USE_DEVICE_AEC && CONFIG_USE_SERVER_AEC
-#error "CONFIG_USE_DEVICE_AEC and         // If sample rate doesn't match codec output rate, do simple resampling
-        if (packet.sample_rate != codec->output_sample_rate()) {
-            ESP_LOGI("Application", "Resampling from %d Hz to %d Hz", 
-                     packet.sample_rate, codec->output_sample_rate());
-            
-            // Simple linear interpolation resampling
-            double ratio = (double)codec->output_sample_rate() / packet.sample_rate;
-            size_t new_sample_count = (size_t)(num_samples * ratio);
-            std::vector<int16_t> resampled_data(new_sample_count);
-            
-            for (size_t i = 0; i < new_sample_count; i++) {
-                double src_index = i / ratio;
-                size_t src_i = (size_t)src_index;
-                
-                if (src_i < num_samples - 1) {
-                    // Linear interpolation
-                    double frac = src_index - src_i;
-                    resampled_data[i] = (int16_t)(pcm_data[src_i] * (1.0 - frac) + pcm_data[src_i + 1] * frac);
-                } else if (src_i < num_samples) {
-                    resampled_data[i] = pcm_data[src_i];
-                } else {
-                    resampled_data[i] = 0;
-                }
-            }
-            
-            // Send resampled data to audio codec
-            codec->OutputData(resampled_data);
-            ESP_LOGD("Application", "Resampled and sent %d PCM samples (was %d) to codec", 
-                     new_sample_count, num_samples);
-        } else {
-            // Sample rates match, send directly
-            codec->OutputData(pcm_data);
-            ESP_LOGD("Application", "Added %d PCM samples to codec for music playback", num_samples);
-        }_SERVER_AEC cannot be enabled at the same time"
+#error "CONFIG_USE_DEVICE_AEC and CONFIG_USE_SERVER_AEC cannot be enabled at the same time"
 #elif CONFIG_USE_DEVICE_AEC
     aec_mode_ = kAecOnDeviceSide;
 #elif CONFIG_USE_SERVER_AEC

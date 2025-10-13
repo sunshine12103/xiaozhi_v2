@@ -163,6 +163,8 @@ void LvglDisplay::UpdateStatusBar(bool update_all) {
         }
 
         if (low_battery_popup_ != nullptr) {
+            // Disable low battery warning - commented out by user request
+            /*
             if (strcmp(icon, FONT_AWESOME_BATTERY_EMPTY) == 0 && discharging) {
                 if (lv_obj_has_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN)) { // 如果低电量提示框隐藏，则显示
                     lv_obj_remove_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
@@ -174,6 +176,7 @@ void LvglDisplay::UpdateStatusBar(bool update_all) {
                     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
                 }
             }
+            */
         }
     }
 

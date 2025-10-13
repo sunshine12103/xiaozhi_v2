@@ -9,43 +9,47 @@
 #include <string>
 
 #include "display/lcd_display.h"
+#include "neutral.h"
 
 #define TAG "OttoEmojiDisplay"
 
-// 表情映射表 - 将原版21种表情映射到现有6个GIF
+// Define GIF descriptors sử dụng raw GIF data
+const lv_img_dsc_t staticstate = {
+    .data_size = Neutral_1__gif_len,
+    .data = Neutral_1__gif,
+};
+
+// Tất cả emotion đều dùng cùng neutral GIF
+const lv_img_dsc_t happy = staticstate;
+const lv_img_dsc_t sad = staticstate;
+const lv_img_dsc_t angry = staticstate;
+const lv_img_dsc_t surprised = staticstate;
+const lv_img_dsc_t thinking = staticstate;
+
+// 表情映射表 - Tất cả emotion đều dùng neutral GIF
 const OttoEmojiDisplay::EmotionMap OttoEmojiDisplay::emotion_maps_[] = {
-    // 中性/平静类表情 -> staticstate
+    // Tất cả đều dùng staticstate (neutral GIF)
     {"neutral", &staticstate},
     {"relaxed", &staticstate},
     {"sleepy", &staticstate},
-
-    // 积极/开心类表情 -> happy
-    {"happy", &happy},
-    {"laughing", &happy},
-    {"funny", &happy},
-    {"loving", &happy},
-    {"confident", &happy},
-    {"winking", &happy},
-    {"cool", &happy},
-    {"delicious", &happy},
-    {"kissy", &happy},
-    {"silly", &happy},
-
-    // 悲伤类表情 -> sad
-    {"sad", &sad},
-    {"crying", &sad},
-
-    // 愤怒类表情 -> anger
-    {"angry", &anger},
-
-    // 惊讶类表情 -> scare
-    {"surprised", &scare},
-    {"shocked", &scare},
-
-    // 思考/困惑类表情 -> buxue
-    {"thinking", &buxue},
-    {"confused", &buxue},
-    {"embarrassed", &buxue},
+    {"happy", &staticstate},
+    {"laughing", &staticstate},
+    {"funny", &staticstate},
+    {"loving", &staticstate},
+    {"confident", &staticstate},
+    {"winking", &staticstate},
+    {"cool", &staticstate},
+    {"delicious", &staticstate},
+    {"kissy", &staticstate},
+    {"silly", &staticstate},
+    {"sad", &staticstate},
+    {"crying", &staticstate},
+    {"angry", &staticstate},
+    {"surprised", &staticstate},
+    {"shocked", &staticstate},
+    {"thinking", &staticstate},
+    {"confused", &staticstate},
+    {"embarrassed", &staticstate},
 
     {nullptr, nullptr}  // 结束标记
 };

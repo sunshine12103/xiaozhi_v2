@@ -12,15 +12,12 @@
 
 #define TAG "OttoEmojiDisplay"
 
-// Include 6 essential emotional GIF data files
+// Include only 3 essential GIF data files to reduce CPU load
 #include "neutral.h"
 #include "happy.h"
 #include "angry.h"
-#include "sad_loocking_down.h"
-#include "Surprisedd.h"
-#include "scared.h"
 
-// Define 6 essential GIF descriptors for basic emotions
+// Define only 3 essential GIF descriptors to minimize CPU usage
 const lv_img_dsc_t staticstate = {
     .data_size = Neutral_1__gif_len,
     .data = Neutral_1__gif,
@@ -36,26 +33,14 @@ const lv_img_dsc_t angry = {
     .data = Angry_gif,
 };
 
-const lv_img_dsc_t sad = {
-    .data_size = Sad_loockig_down_gif_len,
-    .data = Sad_loockig_down_gif,
-};
-
-const lv_img_dsc_t surprised = {
-    .data_size = Surprisedd_gif_len,
-    .data = Surprisedd_gif,
-};
-
-const lv_img_dsc_t scared = {
-    .data_size = Scared1_gif_len,
-    .data = Scared1_gif,
-};
-
-// Map other emotions to the 6 basic ones
-const lv_img_dsc_t furious = angry;        // Very angry -> angry
-const lv_img_dsc_t awe = surprised;        // Awe -> surprised
-const lv_img_dsc_t focused = staticstate;  // Thinking -> neutral
-const lv_img_dsc_t squint = staticstate;   // Squinting -> neutral
+// Map all other emotions to these 3 basic ones to save CPU
+const lv_img_dsc_t sad = staticstate;       // Use neutral for sad
+const lv_img_dsc_t surprised = happy;       // Use happy for surprised
+const lv_img_dsc_t scared = staticstate;    // Use neutral for scared
+const lv_img_dsc_t furious = angry;         // Very angry -> angry
+const lv_img_dsc_t awe = happy;             // Awe -> happy
+const lv_img_dsc_t focused = staticstate;   // Thinking -> neutral
+const lv_img_dsc_t squint = staticstate;    // Squinting -> neutral
 
 // 表情映射表 - Khoa học mapping emotions to appropriate GIFs
 const OttoEmojiDisplay::EmotionMap OttoEmojiDisplay::emotion_maps_[] = {

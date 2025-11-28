@@ -9,6 +9,7 @@
 #include "config.h"
 #include "mcp_server.h"
 #include "led/single_led.h"
+#include "settings.h"
 
 #include <wifi_station.h>
 #include <esp_log.h>
@@ -127,22 +128,41 @@ private:
                                    DISPLAY_SWAP_XY);
         
         // Force sử dụng light theme để có màu sắc
-        ESP_LOGI(TAG, "Setting light theme for colorful display");
+        ESP_LOGI(TAG, "Loading theme from settings");
         auto& theme_manager = LvglThemeManager::GetInstance();
-        auto light_theme = theme_manager.GetTheme("light");
-        if (light_theme) {
-            display_->SetTheme(light_theme);
-            ESP_LOGI(TAG, "Light theme applied successfully");
+        
+        // Load theme from settings (default: dark)
+        Settings settings("display", true); // Readwrite để save setting
+        std::string theme_name = settings.GetString("theme", "dark");
+        
+        // Đảm bảo theme được save sau khi OTA
+        if (theme_name.empty() || (theme_name != "light" && theme_name != "dark")) {
+            theme_name = "dark";  // Default dark theme
+            settings.SetString("theme", theme_name);
+            ESP_LOGI(TAG, "Theme not found or invalid, setting to default: %s", theme_name.c_str());
+        }
+        
+        auto theme = theme_manager.GetTheme(theme_name);
+        
+        if (theme) {
+            display_->SetTheme(theme);
+            ESP_LOGI(TAG, "%s theme applied successfully", theme_name.c_str());
             
-            // Test màu sắc của light theme
-            ESP_LOGI(TAG, "Light theme colors:");
-            ESP_LOGI(TAG, "  Background: white");
-            ESP_LOGI(TAG, "  Text: black");
-            ESP_LOGI(TAG, "  User bubble: #95EC69 (green)");
-            ESP_LOGI(TAG, "  Assistant bubble: white");
-            ESP_LOGI(TAG, "  System bubble: #E0E0E0 (light gray)");
+            // Log màu sắc
+            ESP_LOGI(TAG, "%s theme colors:", theme_name.c_str());
+            if (theme_name == "light") {
+                ESP_LOGI(TAG, "  Background: white");
+                ESP_LOGI(TAG, "  Text: black");
+            } else {
+                ESP_LOGI(TAG, "  Background: black");
+                ESP_LOGI(TAG, "  Text: white");
+            }
         } else {
-            ESP_LOGW(TAG, "Light theme not found, using default");
+            ESP_LOGW(TAG, "%s theme not found, using dark as fallback", theme_name.c_str());
+            auto dark_theme = theme_manager.GetTheme("dark");
+            if (dark_theme) {
+                display_->SetTheme(dark_theme);
+            }
         }
         
         ESP_LOGI(TAG, "Display initialization completed successfully");

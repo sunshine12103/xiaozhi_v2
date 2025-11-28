@@ -327,7 +327,7 @@ void AudioService::OpusCodecTask() {
             if (opus_decoder_->Decode(std::move(packet->payload), task->pcm)) {
                 // Resample if the sample rate is different and resampler is properly configured
                 if (opus_decoder_->sample_rate() != codec_->output_sample_rate()) {
-                    if (output_resampler_.IsConfigured()) {
+                    if (output_resampler_.input_sample_rate() > 0 && output_resampler_.output_sample_rate() > 0) {
                         int target_size = output_resampler_.GetOutputSamples(task->pcm.size());
                         std::vector<int16_t> resampled(target_size);
                         output_resampler_.Process(task->pcm.data(), task->pcm.size(), resampled.data());

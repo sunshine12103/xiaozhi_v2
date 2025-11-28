@@ -82,7 +82,7 @@ void McpServer::AddCommonTools() {
     auto display = board.GetDisplay();
     if (display && display->GetTheme() != nullptr) {
         AddTool("self.screen.set_theme",
-            "Set the theme of the screen. The theme can be `light` or `dark`.",
+            "Set the theme of the screen. The theme can be `light` or `dark`. This setting will be saved permanently.",
             PropertyList({
                 Property("theme", kPropertyTypeString)
             }),
@@ -92,6 +92,12 @@ void McpServer::AddCommonTools() {
                 auto theme = theme_manager.GetTheme(theme_name);
                 if (theme != nullptr) {
                     display->SetTheme(theme);
+                    
+                    // Save theme setting to NVS để persist sau OTA
+                    Settings settings("display", true);
+                    settings.SetString("theme", theme_name);
+                    ESP_LOGI(TAG, "Theme set to %s and saved to NVS", theme_name.c_str());
+                    
                     return true;
                 }
                 return false;

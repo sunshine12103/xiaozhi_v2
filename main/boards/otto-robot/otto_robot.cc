@@ -1,9 +1,11 @@
 #include <driver/i2c_master.h>
+#include <driver/rtc_io.h>
 #include <driver/spi_common.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_vendor.h>
 #include <esp_log.h>
+#include <esp_sleep.h>
 #include <wifi_station.h>
 
 #include "application.h"
@@ -28,6 +30,7 @@ private:
     LcdDisplay* display_;
     PowerManager* power_manager_;
     Button boot_button_;
+    Button wake_up_button_;
     void InitializePowerManager() {
         power_manager_ =
             new PowerManager(POWER_CHARGE_DETECT_PIN, POWER_ADC_UNIT, POWER_ADC_CHANNEL);
@@ -87,6 +90,13 @@ private:
             }
             app.ToggleChatState();
         });
+
+        wake_up_button_.OnClick([this]() {
+            auto& app = Application::GetInstance();
+            ESP_LOGI(TAG, "Wake up button pressed - triggering wake word");
+            std::string wake_word = "你好小智";
+            app.WakeWordInvoke(wake_word);
+        });
     }
 
     void InitializeOttoController() {
@@ -94,13 +104,79 @@ private:
         ::InitializeOttoController();
     }
 
+    void InitializeWakeUpSource() {
+        // Cấu hình EXT0 wake source cho GPIO4
+        // Khi GPIO4 từ LOW lên HIGH (nhấn nút) sẽ đánh thức từ deep sleep
+        esp_sleep_enable_ext0_wakeup(WAKE_UP_BUTTON_GPIO, 1);
+        
+        // Cấu hình pull-down để đảm bảo khi không nhấn nút sẽ là LOW
+        rtc_gpio_pulldown_en(WAKE_UP_BUTTON_GPIO);
+        rtc_gpio_pullup_dis(WAKE_UP_BUTTON_GPIO);
+        
+        ESP_LOGI(TAG, "Wake-up source configured for GPIO %d", WAKE_UP_BUTTON_GPIO);
+        
+        // Kiểm tra nguyên nhân wake-up
+        esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+        switch(wakeup_reason) {
+            case ESP_SLEEP_WAKEUP_EXT0: {
+                ESP_LOGI(TAG, "Wakeup caused by external signal using RTC_IO (GPIO %d)", WAKE_UP_BUTTON_GPIO);
+                // Tự động bắt đầu trò chuyện khi được đánh thức bởi nút
+                vTaskDelay(pdMS_TO_TICKS(1000)); // Đợi hệ thống khởi động hoàn tất
+                auto& app = Application::GetInstance();
+                std::string wake_word = "你好小智";
+                ESP_LOGI(TAG, "Auto-triggering wake word after button wake-up");
+                app.WakeWordInvoke(wake_word);
+                break;
+            }
+            case ESP_SLEEP_WAKEUP_TIMER:
+                ESP_LOGI(TAG, "Wakeup caused by timer");
+                break;
+            case ESP_SLEEP_WAKEUP_TOUCHPAD:
+                ESP_LOGI(TAG, "Wakeup caused by touchpad");
+                break;
+            case ESP_SLEEP_WAKEUP_ULP:
+                ESP_LOGI(TAG, "Wakeup caused by ULP program");
+                break;
+            case ESP_SLEEP_WAKEUP_EXT1:
+                ESP_LOGI(TAG, "Wakeup caused by EXT1");
+                break;
+            case ESP_SLEEP_WAKEUP_GPIO:
+                ESP_LOGI(TAG, "Wakeup caused by GPIO");
+                break;
+            case ESP_SLEEP_WAKEUP_UART:
+                ESP_LOGI(TAG, "Wakeup caused by UART");
+                break;
+            case ESP_SLEEP_WAKEUP_WIFI:
+                ESP_LOGI(TAG, "Wakeup caused by WiFi");
+                break;
+            case ESP_SLEEP_WAKEUP_COCPU:
+                ESP_LOGI(TAG, "Wakeup caused by COCPU");
+                break;
+            case ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG:
+                ESP_LOGI(TAG, "Wakeup caused by COCPU trap trigger");
+                break;
+            case ESP_SLEEP_WAKEUP_BT:
+                ESP_LOGI(TAG, "Wakeup caused by BT");
+                break;
+            case ESP_SLEEP_WAKEUP_VAD:
+                ESP_LOGI(TAG, "Wakeup caused by VAD");
+                break;
+            case ESP_SLEEP_WAKEUP_UNDEFINED:
+            case ESP_SLEEP_WAKEUP_ALL:
+            default:
+                ESP_LOGI(TAG, "Wakeup was not caused by deep sleep: %d", wakeup_reason);
+                break;
+        }
+    }
+
 public:
-    OttoRobot() : boot_button_(BOOT_BUTTON_GPIO) {
+    OttoRobot() : boot_button_(BOOT_BUTTON_GPIO), wake_up_button_(WAKE_UP_BUTTON_GPIO) {
         InitializeSpi();
         InitializeLcdDisplay();
         InitializeButtons();
         InitializePowerManager();
         InitializeOttoController();
+        InitializeWakeUpSource();
         GetBacklight()->RestoreBrightness();
     }
 
